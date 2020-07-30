@@ -28,8 +28,8 @@ local function Authorization(initial, key)
       grant_type = "authorization_code",
       code = key,
       redirect_uri = "https://henotu.github.io",
-      client_id = "",
-      client_secret = ""
+      client_id = "72e22413ad224bceb933b0c27113aa6e",
+      client_secret = "ffd81e619c174272aa983fdb7461e044"
     }
 
     local request = {
@@ -57,8 +57,8 @@ local function Authorization(initial, key)
   elseif not initial then
     --Updating the access_token
     local body = {
-      client_id = "",
-      client_secret = "",
+      client_id = "72e22413ad224bceb933b0c27113aa6e",
+      client_secret = "ffd81e619c174272aa983fdb7461e044",
       grant_type = "refresh_token",
       refresh_token = LocalPlayer():GetPData("gmod_spotify_refresh_token", "")
     }

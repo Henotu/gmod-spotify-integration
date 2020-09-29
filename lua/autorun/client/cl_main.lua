@@ -107,7 +107,7 @@ end
 net.Receive("gSpotify_callback", function()
   local keys = net.ReadString()
   LocalPlayer():SetPData("gmod_spotify_client_keys", keys)
-  KeyLoader(keys)
+  OAuthWindow(string.Split(keys, "\n")[0])
 end)
 
 local function CreateRequest(url, method, header, bod)
@@ -317,8 +317,6 @@ local function StoreSearchedTracks(buttonText, uri)
   LocalPlayer():SetPData("gmod_spotify_track1_uri", uri)
 end
 
-
-
 local function PlayStateChange(paused)
   if paused == false then
     ContinuePlayback()
@@ -448,7 +446,11 @@ local function RunWindow()
   sheet.Paint = function( self, w, h ) draw.RoundedBox( 0, 0, 0, w, h, Color(86, 86, 86, 255)) end
   sheet:SetSize(frame:GetWide(), 0.93 * frame:GetTall())
   sheet:SetPos(0, 0.07 * frame:GetTall())
-  
+
+  --
+  --  control
+  --
+
   local control = vgui.Create("DPanel", sheet)
   control.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color(55, 55, 55, 255)) end
   control:SetSize( sheet:GetWide(), sheet:GetTall())
@@ -584,7 +586,9 @@ local function RunWindow()
     infoLabel:SetText("This Addon is not enabled. \nGo to the settings tab to get startet with the Spotify controller.\n")
     infoLabel:SetVisible(false)
   end
-  
+  --
+  -- search
+  --
   local search = vgui.Create("DPanel", sheet)
   search.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color(55, 55, 55, 255)) end
   search:SetSize( sheet:GetWide(), sheet:GetTall())
@@ -674,7 +678,7 @@ local function RunWindow()
       adminSendButton:SetPos(0.35 * frame:GetWide(), 0.8 * frame:GetTall())
       adminSendButton:SetText("Send!")
       adminSendButton.DoClick = function()
-        local str = adminClientEntry:GetValue() .. "\n" adminSecretEntry:GetValue()
+        local str = adminClientEntry:GetValue() .. "\n" .. adminSecretEntry:GetValue()
         net.Start("gSpotify_recieve")
         net.WriteString(str)
         net.SendToServer()
@@ -695,6 +699,9 @@ local function RunWindow()
     adminKeyButton.DoClick = AdminWindow
   end
   
+  --
+  -- Authorization tab
+  --
 
   local authorize = vgui.Create("DPanel")
   authorize.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color(55, 55, 55, 255)) end
@@ -702,7 +709,8 @@ local function RunWindow()
   authorize:SetVisible(GetConVar("gSpotify_show_Authorization"):GetBool())
   sheet:AddSheet("Authorization", authorize, "icon16/exclamation.png")
 
-  local function OAtuhWindow(id)
+  function OAuthWindow(id)
+    -- Get the OAuthkey from user
     local linkLabelInfo = vgui.Create("DLabel", authorize)
     linkLabelInfo:SetPos(0,0)
     linkLabelInfo:SetTall(0.25 * authorize:GetTall())
@@ -729,7 +737,7 @@ local function RunWindow()
   end
 
   if (LocalPlayer():GetPData("gmod_spotify_client_keys", "") == "") then 
-    local function ClientKeyWindow()
+    local function ClientKeyWindow() --Get Client Id and secret from user
       local clientInfoLabel = vgui.Create("DLabel", authorize)
       clientInfoLabel:SetSize(0.94 * authorize:GetWide(), 0.1 * authorize:GetTall())
       clientInfoLabel:SetPos(0.02 * authorize:GetWide(), 0.05 * authorize:GetTall())
@@ -755,12 +763,13 @@ local function RunWindow()
         clientInfoLabel:Remove()
         clientClientEntry:Remove()
         clientSecretEntry:Remove()
-        OAtuhWindow(clientClientEntry:GetValue())
+        OAuthWindow(clientClientEntry:GetValue())
         saveButton:Remove()
         --Authorization()
       end
     end 
     
+    --These two elements appear when no client keys are saved
     local authInfoLabel = vgui.Create("DLabel", authorize)
     authInfoLabel:SetSize(0.96 * authorize:GetWide(), 0.4 * authorize:GetTall())
     authInfoLabel:SetPos(0.02 * authorize:GetWide(), 0.2 * authorize:GetTall())
@@ -777,7 +786,7 @@ local function RunWindow()
     end
   else
     local tbl = string.Split(LocalPlayer():GetPData("gmod_spotify_client_keys", ""), "\n")
-    OAtuhWindow(tbl[2])
+    OAuthWindow(tbl[2])
   end 
 end
 

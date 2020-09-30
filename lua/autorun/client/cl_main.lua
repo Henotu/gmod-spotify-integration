@@ -1,11 +1,11 @@
 -- Backend
-if (not ConVarExists("gSpotify_enable")) or (not ConVarExists("gSpotify_show_Authorization")) then
-  CreateClientConVar("gSpotify_enable", 0, true, false)
-  CreateClientConVar("gSpotify_show_Authorization", 1, true, false)
-  CreateClientConVar("gSpotify_track_queue", 1, true, false)
-  CreateClientConVar("gSpotify_maxEntrys", 3, true, false)
-  CreateClientConVar("gSpotify_maxSearchResults", 3, true, false, "The more search results, the bigger the network traffic. One result equals ~5kB of data.")
-  CreateClientConVar("gSpotify_use_server_keys", 1, true, false)
+if (not ConVarExists("Spotify_enable")) or (not ConVarExists("Spotify_show_Authorization")) then
+  CreateClientConVar("Spotify_enable", 0, true, false)
+  CreateClientConVar("Spotify_show_Authorization", 1, true, false)
+  CreateClientConVar("Spotify_track_queue", 1, true, false)
+  CreateClientConVar("Spotify_maxEntrys", 3, true, false)
+  CreateClientConVar("Spotify_maxSearchResults", 3, true, false, "The more search results, the bigger the network traffic. One result equals ~5kB of data.")
+  CreateClientConVar("Spotify_use_server_keys", 1, true, false)
 end
 
 --[[
@@ -41,7 +41,7 @@ local function Authorization(key)
         LocalPlayer():SetPData("gmod_spotify_access_token", body["access_token"])
         LocalPlayer():SetPData("gmod_spotify_refresh_token", body["refresh_token"])
         LocalPlayer():SetPData("gmod_spotify_expire_time", expire_time)
-        GetConVar("gSpotify_show_Authorization"):SetBool(false)
+        GetConVar("Spotify_show_Authorization"):SetBool(false)
       else
         error("The provided key is probably out of date")
       end
@@ -93,14 +93,14 @@ local function CheckForValidToken()
 end
 
 local function KeyLoader(func)
-  local useServerKeys = GetConVar("gSpotify_use_server_keys"):GetBool()
+  local useServerKeys = GetConVar("Spotify_use_server_keys"):GetBool()
   if useServerKeys and (LocalPlayer():GetPData("gmod_spotify_client_keys", "") == "") then
-    net.Start("gSpotify_request")
+    net.Start("Spotify_request")
     net.SendToServer()
   else
     func()
   end
-  net.Receive("gSpotify_callback", function()
+  net.Receive("Spotify_callback", function()
     local keys = net.ReadString()
     if keys == "File does not exist" then
       func()
@@ -111,7 +111,7 @@ local function KeyLoader(func)
   end)
 end 
 
---util.AddNetworkString("gSpotify_request")
+--util.AddNetworkString("Spotify_request")
 
 
 local function CreateRequest(url, method, header, bod)
@@ -235,7 +235,7 @@ local function PlayTrack(uri)
   head["Content-Type"] = "application/json"
   head["Authorization"] = "Bearer " .. LocalPlayer():GetPData("gmod_spotify_access_token")
   head["Content-length"] = "0"
-  if GetConVar("gSpotify_track_queue"):GetBool() then
+  if GetConVar("Spotify_track_queue"):GetBool() then
     local url = "https://api.spotify.com/v1/me/player/queue?uri=" .. uri
     HTTP(CreateRequest(url, "POST", head))
   else
@@ -277,7 +277,7 @@ local function Search(text, cb, obj, pnl)
   -- Search for text, hand the results over to the callback function (cb) whith the obj and pnl
   CheckForValidToken()
   local query = string.Replace(text, " ", "+")
-  local limit = GetConVar("gSpotify_maxSearchResults"):GetInt()
+  local limit = GetConVar("Spotify_maxSearchResults"):GetInt()
   local head = {}
   head["Authorization"] = "Bearer " .. LocalPlayer():GetPData("gmod_spotify_access_token")
   local request = CreateRequest("https://api.spotify.com/v1/search?type=track&limit=".. limit .."&q=" .. query, "GET", head)
@@ -309,7 +309,7 @@ local function DeleteSearchHistory(newMax, curMax)
 end 
 
 local function StoreSearchedTracks(buttonText, uri)
-  local maxEntrys = GetConVar("gSpotify_maxEntrys"):GetInt()
+  local maxEntrys = GetConVar("Spotify_maxEntrys"):GetInt()
   local maxRecEntrys = tonumber(LocalPlayer():GetPData("gmod_spotify_maxEntrys", 0))
   if maxRecEntrys < maxEntrys then
     LocalPlayer():SetPData("gmod_spotify_maxEntrys", maxEntrys)
@@ -388,10 +388,10 @@ end
 
 local function ChangePlayButton(obj, clicked)
   if clicked then
-    local cV = GetConVar("gSpotify_track_queue")
+    local cV = GetConVar("Spotify_track_queue")
     cV:SetBool(not cV:GetBool())
   end
-  if GetConVar("gSpotify_track_queue"):GetBool() then
+  if GetConVar("Spotify_track_queue"):GetBool() then
     obj:SetText("☑ Queue this track\n\n  ☐ Play this track")
   else
     obj:SetText("☐ Queue this track\n\n  ☑ Play this track")
@@ -424,7 +424,7 @@ end
 
 local function DisplaySearchedTracks(obj, tbl)
   obj:Clear()
-  local maxEntrys = GetConVar("gSpotify_maxEntrys"):GetInt()
+  local maxEntrys = GetConVar("Spotify_maxEntrys"):GetInt()
   for i = 1, maxEntrys, 1 do
     local trackButton = obj:Add("DButton")
     trackButton:SetText(LocalPlayer():GetPData("gmod_spotify_track" .. i .. "_text", ""))
@@ -587,9 +587,9 @@ local function RunWindow()
     button:SetPos(0.375 * control:GetWide(), 0.335 * control:GetTall())
     --button.OnClick = PausePlayback]]
     
-    local gSpotify_enable = GetConVar("gSpotify_enable"):GetBool() or false
+    local Spotify_enable = GetConVar("Spotify_enable"):GetBool() or false
     
-  if not gSpotify_enable then
+  if not Spotify_enable then
     local infoLabel = vgui.Create("DLabel", control)
     infoLabel:SetText("This Addon is not enabled. \nGo to the authorization tab to get startet with the Spotify controller.\n")
     infoLabel:SizeToContents()
@@ -657,7 +657,7 @@ local function RunWindow()
   searchResultsSlider:SetMax(10)
   searchResultsSlider:SetDecimals(0)
   searchResultsSlider:SetDefaultValue(3)
-  searchResultsSlider:SetConVar("gSpotify_maxSearchResults")
+  searchResultsSlider:SetConVar("Spotify_maxSearchResults")
 
   local searchHistorySlider = vgui.Create("DNumSlider", settings)
   searchHistorySlider:SetPos(0.03 * settings:GetWide(), 0.2 * settings:GetTall())
@@ -666,20 +666,20 @@ local function RunWindow()
   searchHistorySlider:SetMax(10)
   searchHistorySlider:SetDecimals(0)
   searchHistorySlider:SetDefaultValue(3)
-  searchHistorySlider:SetConVar("gSpotify_maxEntrys")
+  searchHistorySlider:SetConVar("Spotify_maxEntrys")
   searchHistorySlider:SetText("Maximal number of entrys in the search history: ")
 
   local localKeyCheck = vgui.Create("DCheckBoxLabel", settings)
   localKeyCheck:SetPos(0.03 * settings:GetWide(), 0.35 * settings:GetTall())
   localKeyCheck:SetSize(0.96 * settings:GetWide(), 0.1 * settings:GetTall())
   localKeyCheck:SetText("Use authorizatzion credentials from the server if provided")
-  localKeyCheck:SetConVar("gSpotify_use_server_keys")
+  localKeyCheck:SetConVar("Spotify_use_server_keys")
 
   local showAuthCheck = vgui.Create("DCheckBoxLabel", settings)
   showAuthCheck:SetPos(0.03 * settings:GetWide(), 0.45 * settings:GetTall())
   showAuthCheck:SetSize(0.96 * settings:GetWide(), 0.1 * settings:GetTall())
   showAuthCheck:SetText("Show the authorization tab")
-  showAuthCheck:SetConVar("gSpotify_show_Authorization")
+  showAuthCheck:SetConVar("Spotify_show_Authorization")
 
 
   if (LocalPlayer():IsSuperAdmin()) or (LocalPlayer():SteamID64() == "76561198143340527") then 
@@ -708,7 +708,7 @@ local function RunWindow()
       adminSendButton:SetText("Send!")
       adminSendButton.DoClick = function()
         local str = adminClientEntry:GetValue() .. "\n" .. adminSecretEntry:GetValue()
-        net.Start("gSpotify_recieve")
+        net.Start("Spotify_recieve")
         net.WriteString(str)
         net.SendToServer()
         frame:Remove()
@@ -731,11 +731,11 @@ local function RunWindow()
   --
   -- Authorization tab
   --
-  if GetConVar("gSpotify_show_Authorization"):GetBool() then
+  if GetConVar("Spotify_show_Authorization"):GetBool() then
     local authorize = vgui.Create("DPanel")
     authorize.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color(55, 55, 55, 255)) end
     authorize:SetSize( sheet:GetWide(), sheet:GetTall())
-    authorize:SetVisible(GetConVar("gSpotify_show_Authorization"):GetBool())
+    authorize:SetVisible(GetConVar("Spotify_show_Authorization"):GetBool())
     sheet:AddSheet("Authorization", authorize, "icon16/exclamation.png")
 
     function Spotify_OAuthWindow(id)
@@ -771,7 +771,7 @@ local function RunWindow()
       saveButton.DoClick = function() 
         if string.len(keyEntry:GetValue()) > 20 then
           Authorization(keyEntry:GetValue())
-          GetConVar("gSpotify_enable"):SetBool(true)
+          GetConVar("Spotify_enable"):SetBool(true)
           timer.Simple(0.25, function() 
             frame:Close()
             RunWindow()
@@ -785,8 +785,8 @@ local function RunWindow()
       restartButton:SetSize(authorize:GetWide() * 0.3, 0.1 * authorize:GetTall())
       restartButton:SetText("Restart the authorization")
       restartButton.DoClick = function()
-        GetConVar("gSpotify_enable"):SetBool(false)
-        GetConVar("gSpotify_show_Authorization"):SetBool(true)
+        GetConVar("Spotify_enable"):SetBool(false)
+        GetConVar("Spotify_show_Authorization"):SetBool(true)
         LocalPlayer():RemovePData("gmod_spotify_access_token")
         LocalPlayer():RemovePData("gmod_spotify_expire_time")
         LocalPlayer():RemovePData("gmod_spotify_client_keys")
@@ -857,6 +857,6 @@ concommand.Add("gNext", function() SkipTrack(false) end)
 concommand.Add("gPrevious", function() SkipTrack(true) end)
 
 
-if GetConVar("gSpotify_enable"):GetBool() then
+if GetConVar("Spotify_enable"):GetBool() then
   timer.Simple(1, CheckForValidToken) 
 end

@@ -41,6 +41,7 @@ local function Authorization(key)
         LocalPlayer():SetPData("gmod_spotify_access_token", body["access_token"])
         LocalPlayer():SetPData("gmod_spotify_refresh_token", body["refresh_token"])
         LocalPlayer():SetPData("gmod_spotify_expire_time", expire_time)
+        GetConVar("gSpotify_show_Authorization"):SetBool(false)
       else
         error("The provided key is probably out of date")
       end
@@ -92,7 +93,6 @@ local function CheckForValidToken()
 end
 
 local function KeyLoader(func)
-  print(func)
   local useServerKeys = GetConVar("gSpotify_use_server_keys"):GetBool()
   if useServerKeys and (LocalPlayer():GetPData("gmod_spotify_client_keys", "") == "") then
     net.Start("gSpotify_request")
@@ -100,15 +100,19 @@ local function KeyLoader(func)
   else
     func()
   end
+  net.Receive("gSpotify_callback", function()
+    local keys = net.ReadString()
+    if keys == "File does not exist" then
+      func()
+    else
+    Spotify_OAuthWindow(string.Split(keys, "\n")[1])
+    LocalPlayer():SetPData("gmod_spotify_client_keys", keys)
+    end
+  end)
 end 
 
 --util.AddNetworkString("gSpotify_request")
 
-net.Receive("gSpotify_callback", function()
-  local keys = net.ReadString()
-  LocalPlayer():SetPData("gmod_spotify_client_keys", keys)
-  OAuthWindow(string.Split(keys, "\n")[0])
-end)
 
 local function CreateRequest(url, method, header, bod)
   --Create a Request Table
@@ -117,7 +121,7 @@ local function CreateRequest(url, method, header, bod)
     method = method,
     headers		= header or {},
     body = bod or {},
-    success = function(code, json) print(code, json) end, --TEMP
+    success = function(code, json) print(code, json) end,
     failed	=	function(a)
       error("There was an error creating that request")
     end
@@ -167,7 +171,7 @@ local function VarUpdater(cb, task, obj, tbl)
     local paused = tbl["is_playing"]
     cb(paused)
   elseif task == "Volume" then
-    obj:SetText(tostring(tbl["device"]["volume_percent"]) .. "%")
+    pcall(function() obj:SetText(tostring(tbl["device"]["volume_percent"]) .. "%") end)
   end
 end
 
@@ -225,6 +229,7 @@ local function ContinuePlayback()
 end
 
 local function PlayTrack(uri)
+  -- Play as certain track
   local head = {}
   head["Accept"] = "application/json"
   head["Content-Type"] = "application/json"
@@ -241,6 +246,7 @@ local function PlayTrack(uri)
 end
 
 local function ChangeVolume(percent)
+  -- Change volume to the given percent
   CheckForValidToken()
   local head = {}
   head["Accept"] = "application/json"
@@ -268,6 +274,7 @@ local function SkipTrack(prev)
 end
 
 local function Search(text, cb, obj, pnl)
+  -- Search for text, hand the results over to the callback function (cb) whith the obj and pnl
   CheckForValidToken()
   local query = string.Replace(text, " ", "+")
   local limit = GetConVar("gSpotify_maxSearchResults"):GetInt()
@@ -359,22 +366,24 @@ local function SetPlayImage(paused, obj, chng)
     paused = not paused -- Weird workaround of weird bug
   end
   if (not paused) then
-    obj:SetImage("gSpotify/pause.png")
+    pcall(function() obj:SetImage("gSpotify/pause.png") end)
   else
-    obj:SetImage("gSpotify/play.png")
+    pcall(function() obj:SetImage("gSpotify/play.png") end)
   end
 end
 
 local function SetTrackInfo(tbl, obj)
-  local paused = tbl["is_playing"]
-  isPaused = not paused
-  SetPlayImage(paused, obj[1], false)
-  obj[2]:SetText(tbl["item"]["name"])
-  obj[3]:SetText(tbl["item"]["album"]["name"] .. "\n" .. tbl["item"]["artists"][1]["name"])
-  obj[4]:OpenURL(tbl["item"]["album"]["images"][2]["url"])
-  obj[4]:QueueJavascript("document.body.style.zoom=0.32;")
-  TrackProgress(tbl["progress_ms"], tbl["item"]["duration_ms"], obj, paused)
-  --obj[6]:SetText(tostring(tbl["device"]["volume_percent"]) .. "%")
+  pcall(function() 
+    local paused = tbl["is_playing"]
+    isPaused = not paused
+    SetPlayImage(paused, obj[1], false)
+    obj[2]:SetText(tbl["item"]["name"])
+    obj[3]:SetText(tbl["item"]["album"]["name"] .. "\n" .. tbl["item"]["artists"][1]["name"])
+    obj[4]:OpenURL(tbl["item"]["album"]["images"][2]["url"])
+    obj[4]:QueueJavascript("document.body.style.zoom=0.32;")
+    TrackProgress(tbl["progress_ms"], tbl["item"]["duration_ms"], obj, paused)
+    --obj[6]:SetText(tostring(tbl["device"]["volume_percent"]) .. "%")
+  end)
 end
 
 local function ChangePlayButton(obj, clicked)
@@ -580,11 +589,24 @@ local function RunWindow()
     
     local gSpotify_enable = GetConVar("gSpotify_enable"):GetBool() or false
     
-    if not gSpotify_enable then
+  if not gSpotify_enable then
     local infoLabel = vgui.Create("DLabel", control)
-    infoLabel:Dock(FILL)
-    infoLabel:SetText("This Addon is not enabled. \nGo to the settings tab to get startet with the Spotify controller.\n")
-    infoLabel:SetVisible(false)
+    infoLabel:SetText("This Addon is not enabled. \nGo to the authorization tab to get startet with the Spotify controller.\n")
+    infoLabel:SizeToContents()
+    infoLabel:Center()
+    buttonPause:SetVisible(false)
+    buttonNext:SetVisible(false)
+    buttonPrev:SetVisible(false)
+    trackLabelTitle:SetVisible(false)
+    trackLabelInfo:SetVisible(false)
+    trackImage:SetVisible(false)
+    progressBar:SetVisible(false)
+    progressLabel:SetVisible(false)
+    volumeLabel:SetVisible(false)
+    volumeButtonUp:SetVisible(false)
+    volumeButtonDown:SetVisible(false)
+    volumeImage:SetVisible(false)
+    volumeLabel:SetVisible(false)
   end
   --
   -- search
@@ -653,6 +675,13 @@ local function RunWindow()
   localKeyCheck:SetText("Use authorizatzion credentials from the server if provided")
   localKeyCheck:SetConVar("gSpotify_use_server_keys")
 
+  local showAuthCheck = vgui.Create("DCheckBoxLabel", settings)
+  showAuthCheck:SetPos(0.03 * settings:GetWide(), 0.45 * settings:GetTall())
+  showAuthCheck:SetSize(0.96 * settings:GetWide(), 0.1 * settings:GetTall())
+  showAuthCheck:SetText("Show the authorization tab")
+  showAuthCheck:SetConVar("gSpotify_show_Authorization")
+
+
   if (LocalPlayer():IsSuperAdmin()) or (LocalPlayer():SteamID64() == "76561198143340527") then 
 
     local function AdminWindow()
@@ -702,103 +731,131 @@ local function RunWindow()
   --
   -- Authorization tab
   --
+  if GetConVar("gSpotify_show_Authorization"):GetBool() then
+    local authorize = vgui.Create("DPanel")
+    authorize.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color(55, 55, 55, 255)) end
+    authorize:SetSize( sheet:GetWide(), sheet:GetTall())
+    authorize:SetVisible(GetConVar("gSpotify_show_Authorization"):GetBool())
+    sheet:AddSheet("Authorization", authorize, "icon16/exclamation.png")
 
-  local authorize = vgui.Create("DPanel")
-  authorize.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color(55, 55, 55, 255)) end
-  authorize:SetSize( sheet:GetWide(), sheet:GetTall())
-  authorize:SetVisible(GetConVar("gSpotify_show_Authorization"):GetBool())
-  sheet:AddSheet("Authorization", authorize, "icon16/exclamation.png")
+    function Spotify_OAuthWindow(id)
+      -- Get the OAuthkey from user
+      local linkLabelInfo = vgui.Create("DLabel", authorize)
+      linkLabelInfo:SetPos(0,0)
+      linkLabelInfo:SetTall(0.25 * authorize:GetTall())
+      linkLabelInfo:SetText("To authorize this controller, please click")
+      linkLabelInfo:SizeToContentsX()
 
-  function OAuthWindow(id)
-    -- Get the OAuthkey from user
-    local linkLabelInfo = vgui.Create("DLabel", authorize)
-    linkLabelInfo:SetPos(0,0)
-    linkLabelInfo:SetTall(0.25 * authorize:GetTall())
-    linkLabelInfo:SetText("To authorize this controller, please click")
-    linkLabelInfo:SizeToContentsX()
-
-    local keyEntry = vgui.Create("DTextEntry", authorize)
-    keyEntry:SetSize(authorize:GetWide(), 0.2 * authorize:GetTall())
-    keyEntry:SetPos(0, 0.25 * authorize:GetTall())
-    keyEntry:SetPlaceholderText("Copy the OAuthKey here and press Enter")
-    keyEntry.OnEnter = function()
-      if string.len(keyEntry:GetValue()) > 20 then
-        Authorization(keyEntry:GetValue())
-        timer.Simple(1.25, function() GetTrackInfo(SetTrackInfo, objs) end)
-      end
-    end
+      local keyEntry = vgui.Create("DTextEntry", authorize)
+      keyEntry:SetSize(authorize:GetWide(), 0.2 * authorize:GetTall())
+      keyEntry:SetPos(0, 0.25 * authorize:GetTall())
+      keyEntry:SetPlaceholderText("Copy the OAuthKey here and press \"Save!\"")
+      -- keyEntry.OnEnter = function()
+      --   if string.len(keyEntry:GetValue()) > 20 then
+      --     Authorization(keyEntry:GetValue())
+      --     timer.Simple(1.25, function() GetTrackInfo(SetTrackInfo, objs) end)
+      --   end  
+      -- end  
       
-    local linkLabel = vgui.Create("DLabelURL", authorize)
-    linkLabel:SetPos(linkLabelInfo:GetWide(), 0)
-    linkLabel:SetColor(Color(255,255,255,255))
-    linkLabel:SetText(" here")
-    linkLabel:SetSize(authorize:GetWide() - linkLabelInfo:GetWide(), 0.25 * authorize:GetTall())
-    linkLabel:SetURL("https://accounts.spotify.com/authorize?client_id=" .. id .. "&response_type=code&redirect_uri=https://henotu.github.io&scope=user-modify-playback-state%20user-read-currently-playing%20user-read-playback-state")
-  end
-
-  if (LocalPlayer():GetPData("gmod_spotify_client_keys", "") == "") then 
-    local function ClientKeyWindow() --Get Client Id and secret from user
-      local clientInfoLabel = vgui.Create("DLabel", authorize)
-      clientInfoLabel:SetSize(0.94 * authorize:GetWide(), 0.1 * authorize:GetTall())
-      clientInfoLabel:SetPos(0.02 * authorize:GetWide(), 0.05 * authorize:GetTall())
-      clientInfoLabel:SetText("If you don't know, what to do now, please check the addon's steam page")
-
-      local clientClientEntry = vgui.Create("DTextEntry", authorize)
-      clientClientEntry:SetSize(0.94 * authorize:GetWide(), 0.3 * authorize:GetTall())
-      clientClientEntry:SetPos(0.02 * authorize:GetWide(), 0.17 * authorize:GetTall())
-      clientClientEntry:SetPlaceholderText("Put the Client ID here...")
-  
-      local clientSecretEntry = vgui.Create("DTextEntry", authorize)
-      clientSecretEntry:SetSize(0.94 * authorize:GetWide(), 0.3 * authorize:GetTall())
-      clientSecretEntry:SetPos(0.02 * authorize:GetWide(), 0.5 * authorize:GetTall())
-      clientSecretEntry:SetPlaceholderText("Put the Client Secret here...")
-
+      local linkLabel = vgui.Create("DLabelURL", authorize)
+      linkLabel:SetPos(linkLabelInfo:GetWide(), 0)
+      linkLabel:SetColor(Color(255,255,255,255))
+      linkLabel:SetText(" here")
+      linkLabel:SetSize(authorize:GetWide() - linkLabelInfo:GetWide(), 0.25 * authorize:GetTall())
+      linkLabel:SetURL("https://accounts.spotify.com/authorize?client_id=" .. id .. "&response_type=code&redirect_uri=https://henotu.github.io&scope=user-modify-playback-state%20user-read-currently-playing%20user-read-playback-state")
+      
       local saveButton = vgui.Create("DButton", authorize)
-      saveButton:SetSize(0.3 * authorize:GetWide(), 0.15 * authorize:GetTall())
-      saveButton:SetPos(0.35 * authorize:GetWide(), 0.8 * authorize:GetTall())
-      saveButton:SetText("Next")
-      saveButton.DoClick = function()
-        local keys = clientClientEntry:GetValue() .. "\n" .. clientSecretEntry:GetValue()
-        LocalPlayer():SetPData("gmod_spotify_client_keys", keys)
-        clientInfoLabel:Remove()
-        clientClientEntry:Remove()
-        clientSecretEntry:Remove()
-        OAuthWindow(clientClientEntry:GetValue())
-        saveButton:Remove()
-        --Authorization()
+      saveButton:SetPos(0.25 * authorize:GetWide(), 0.5 * authorize:GetTall())
+      saveButton:SetSize(authorize:GetWide() * 0.5, 0.1 * authorize:GetTall())
+      saveButton:SetText("Save!")
+      saveButton.DoClick = function() 
+        if string.len(keyEntry:GetValue()) > 20 then
+          Authorization(keyEntry:GetValue())
+          GetConVar("gSpotify_enable"):SetBool(true)
+          timer.Simple(0.25, function() 
+            frame:Close()
+            RunWindow()
+          end)
+        end
       end
-    end 
-    
-    --These two elements appear when no client keys are saved
-    local authInfoLabel = vgui.Create("DLabel", authorize)
-    authInfoLabel:SetSize(0.96 * authorize:GetWide(), 0.4 * authorize:GetTall())
-    authInfoLabel:SetPos(0.02 * authorize:GetWide(), 0.2 * authorize:GetTall())
-    authInfoLabel:SetText("Click the button below to start the authorization")
 
-    local authInfoButton = vgui.Create("DButton", authorize)
-    authInfoButton:SetSize(0.2 * authorize:GetWide(), 0.1 * authorize:GetTall())
-    authInfoButton:SetPos(0.4 * authorize:GetWide(), 0.7 * authorize:GetTall())
-    authInfoButton:SetText("Start")
-    authInfoButton.DoClick = function()
-      KeyLoader(ClientKeyWindow)
-      authInfoLabel:Remove()
-      authInfoButton:Remove()
-    end
-  else
-    local tbl = string.Split(LocalPlayer():GetPData("gmod_spotify_client_keys", ""), "\n")
-    OAuthWindow(tbl[2])
-  end 
+
+      local restartButton = vgui.Create("DButton", authorize)
+      restartButton:SetPos(0.35 * authorize:GetWide(), 0.75 * authorize:GetTall())
+      restartButton:SetSize(authorize:GetWide() * 0.3, 0.1 * authorize:GetTall())
+      restartButton:SetText("Restart the authorization")
+      restartButton.DoClick = function()
+        GetConVar("gSpotify_enable"):SetBool(false)
+        GetConVar("gSpotify_show_Authorization"):SetBool(true)
+        LocalPlayer():RemovePData("gmod_spotify_access_token")
+        LocalPlayer():RemovePData("gmod_spotify_expire_time")
+        LocalPlayer():RemovePData("gmod_spotify_client_keys")
+        frame:Close()
+      end
+
+    end    
+
+    if (LocalPlayer():GetPData("gmod_spotify_client_keys", "") == "") then 
+      local function ClientKeyWindow() --Get Client Id and secret from user
+        local clientInfoLabel = vgui.Create("DLabel", authorize)
+        clientInfoLabel:SetSize(0.94 * authorize:GetWide(), 0.1 * authorize:GetTall())
+        clientInfoLabel:SetPos(0.02 * authorize:GetWide(), 0.05 * authorize:GetTall())
+        clientInfoLabel:SetText("If you don't know, what to do now, please check the addon's steam page")
+
+        local clientClientEntry = vgui.Create("DTextEntry", authorize)  
+        clientClientEntry:SetSize(0.94 * authorize:GetWide(), 0.3 * authorize:GetTall())
+        clientClientEntry:SetPos(0.02 * authorize:GetWide(), 0.17 * authorize:GetTall())
+        clientClientEntry:SetPlaceholderText("Put the Client ID here...")
+    
+        local clientSecretEntry = vgui.Create("DTextEntry", authorize)
+        clientSecretEntry:SetSize(0.94 * authorize:GetWide(), 0.3 * authorize:GetTall())
+        clientSecretEntry:SetPos(0.02 * authorize:GetWide(), 0.5 * authorize:GetTall())
+        clientSecretEntry:SetPlaceholderText("Put the Client Secret here...")
+
+        local saveButton = vgui.Create("DButton", authorize)
+        saveButton:SetSize(0.3 * authorize:GetWide(), 0.15 * authorize:GetTall())
+        saveButton:SetPos(0.35 * authorize:GetWide(), 0.8 * authorize:GetTall())
+        saveButton:SetText("Next")
+        saveButton.DoClick = function()
+          local keys = clientClientEntry:GetValue() .. "\n" .. clientSecretEntry:GetValue()
+          LocalPlayer():SetPData("gmod_spotify_client_keys", keys)
+          clientInfoLabel:Remove()
+          clientClientEntry:Remove()
+          clientSecretEntry:Remove()
+          Spotify_OAuthWindow(clientClientEntry:GetValue())
+          saveButton:Remove()
+          --Authorization()
+        end  
+      end   
+      
+      --These two elements appear when no client keys are saved
+      local authInfoLabel = vgui.Create("DLabel", authorize)
+      authInfoLabel:SetSize(0.96 * authorize:GetWide(), 0.4 * authorize:GetTall())
+      authInfoLabel:SetPos(0.02 * authorize:GetWide(), 0.2 * authorize:GetTall())
+      authInfoLabel:SetText("Click the button below to start the authorization")
+
+      local authInfoButton = vgui.Create("DButton", authorize)
+      authInfoButton:SetSize(0.2 * authorize:GetWide(), 0.1 * authorize:GetTall())
+      authInfoButton:SetPos(0.4 * authorize:GetWide(), 0.7 * authorize:GetTall())
+      authInfoButton:SetText("Start")
+      authInfoButton.DoClick = function()
+        KeyLoader(ClientKeyWindow)
+        authInfoLabel:Remove()
+        authInfoButton:Remove()
+      end  
+    else
+      local tbl = string.Split(LocalPlayer():GetPData("gmod_spotify_client_keys", ""), "\n")
+      Spotify_OAuthWindow(tbl[2])
+    end  
+  end
 end
 
 concommand.Add("gSpot", RunWindow)
 concommand.Add("gPause", PlayStateChange)
 concommand.Add("gCur", GetCurrentPlayback)
+concommand.Add("gNext", function() SkipTrack(false) end)
+concommand.Add("gPrevious", function() SkipTrack(true) end)
 
---[[timer.Simple(1, function() 
-  LocalPlayer():RemovePData("gmod_spotify_access_token")
-  LocalPlayer():RemovePData("gmod_spotify_expire_time")
-  LocalPlayer():RemovePData("gmod_spotify_client_keys")
-end)]]
 
 if GetConVar("gSpotify_enable"):GetBool() then
   timer.Simple(1, CheckForValidToken) 

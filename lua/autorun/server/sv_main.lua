@@ -18,5 +18,9 @@ net.Receive("gSpotify_request", function(len, ply)
         net.Start("gSpotify_callback")
         net.WriteString(str)
         net.Send(ply)
+    else
+        net.Start("gSpotify_callback")
+        net.WriteString("File does not exist")
+        net.Send(ply)
     end
 end)

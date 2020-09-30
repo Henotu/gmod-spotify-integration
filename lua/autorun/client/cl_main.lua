@@ -366,9 +366,9 @@ local function SetPlayImage(paused, obj, chng)
     paused = not paused -- Weird workaround of weird bug
   end
   if (not paused) then
-    pcall(function() obj:SetImage("gSpotify/pause.png") end)
+    pcall(function() obj:SetImage("spotify/pause.png") end)
   else
-    pcall(function() obj:SetImage("gSpotify/play.png") end)
+    pcall(function() obj:SetImage("spotify/play.png") end)
   end
 end
 
@@ -473,13 +473,13 @@ local function RunWindow()
   local x,y = buttonPause:GetPos()
   buttonNext:SetPos(x + 153, y + 64)
   buttonNext:SetSize(64,64)
-  buttonNext:SetImage("gSpotify/next.png")
+  buttonNext:SetImage("spotify/next.png")
   
   local buttonPrev = vgui.Create("DImageButton", control)
   local x,y = buttonPause:GetPos()
   buttonPrev:SetPos(x - 89, y + 64)
   buttonPrev:SetSize(64,64)
-  buttonPrev:SetImage("gSpotify/prev.png")
+  buttonPrev:SetImage("spotify/prev.png")
   
   local trackLabelTitle = vgui.Create("DLabel", control)
   trackLabelTitle:SetPos(0.24 * control:GetWide(), 0.08 * control:GetTall())
@@ -578,7 +578,7 @@ local function RunWindow()
   local x,y = buttonPause:GetPos()
   volumeImage:SetPos(x + 275, y + 36)
   volumeImage:SetSize(50,50)
-  volumeImage:SetImage("gSpotify/vol.png")
+  volumeImage:SetImage("spotify/vol.png")
   
   
   --[[

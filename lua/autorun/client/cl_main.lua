@@ -57,7 +57,6 @@ local function Reauthorization()
   local hea = {}
   hea["Content-length"] = "0"
   local tbl = string.Split(LocalPlayer():GetPData("gmod_spotify_client_keys", ""), "\n")
-  PrintTable(tbl)
   --Updating the access_token
   local body = {
     client_id = tbl[1],
@@ -121,7 +120,11 @@ local function CreateRequest(url, method, header, bod)
     method = method,
     headers		= header or {},
     body = bod or {},
-    success = function(code, json) print(code, json) end,
+    success = function(code, json)
+      if tostring(code) == "403" then 
+        print(tostring(json))
+      end
+    end,
     failed	=	function(a)
       error("There was an error creating that request")
     end
@@ -850,12 +853,18 @@ local function RunWindow()
   end
 end
 
-concommand.Add("gSpot", RunWindow)
-concommand.Add("gPause", PlayStateChange)
-concommand.Add("gCur", GetCurrentPlayback)
-concommand.Add("gNext", function() SkipTrack(false) end)
-concommand.Add("gPrevious", function() SkipTrack(true) end)
+concommand.Add("Spotify_RunWindow", RunWindow)
+concommand.Add("Spotify_Pause", PlayStateChange)
+concommand.Add("Spotify_Next", function() SkipTrack(false) end)
+concommand.Add("Spotify_Previous", function() SkipTrack(true) end)
 
+hook.Add("TTT2FinishedLoading", "ttt_Statistics_Addon_gui", function()
+  bind.Register("gmod_spotify_addon_runWindow", RunWindow, nil, "Spotify integration", "Open Spotify menu")
+  bind.Register("gmod_spotify_addon_rause", PlayStateChange, nil, "Spotify integration", "Pause/Play Spotify")
+  bind.Register("gmod_spotify_addon_next", function() SkipTrack(false) end, nil, "Spotify integration", "Skip track")
+  bind.Register("gmod_spotify_addon_previous", function() SkipTrack(true) end, nil, "Spotify integration", "Previous track")
+  AddTTT2AddonDev("76561198143340527")
+end)
 
 if GetConVar("Spotify_enable"):GetBool() then
   timer.Simple(1, CheckForValidToken) 

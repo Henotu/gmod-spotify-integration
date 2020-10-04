@@ -493,7 +493,7 @@ local function RunWindow()
   local trackLabelInfo = vgui.Create("DLabel", control)
   trackLabelInfo:SetPos(0.24 * control:GetWide(), 0.13 * control:GetTall())
   trackLabelInfo:SetSize(0.73 * control:GetWide(), 0.068 * control:GetTall())
-  trackLabelInfo:SetText("Try to reopen this window or\nreauthenticate")
+  trackLabelInfo:SetText("Try to reopen this window, reauthenticate or\nreopen Spotify on your computer")
   
   local trackImage = vgui.Create("DHTML", control)
   trackImage:SetPos(0.08 * control:GetWide(), 0.08 * control:GetTall())

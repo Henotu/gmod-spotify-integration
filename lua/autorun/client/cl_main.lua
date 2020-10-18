@@ -551,13 +551,12 @@ local function RunWindow()
   volumeButtonUp:SetSize(50,25)
   volumeButtonUp:SetText("+")
   volumeButtonUp.DoClick = function()
-    if volume_percent <= 90 then
-      volume_percent = volume_percent + 10
-      ChangeVolume(volume_percent)
-    elseif volume_percent > 90 then
+    if volume_percent <= 95 then
+      volume_percent = volume_percent + 5
+    elseif volume_percent > 95 then
       volume_percent = 100
-      ChangeVolume(100)
     end
+    ChangeVolume(volume_percent)
     volumeLabel:SetText(tostring(volume_percent) .. "%")
   end
   
@@ -567,13 +566,12 @@ local function RunWindow()
   volumeButtonDown:SetSize(50,25)
   volumeButtonDown:SetText("-")
   volumeButtonDown.DoClick = function()
-    if volume_percent >= 10 then
-      volume_percent = volume_percent - 10
-      ChangeVolume(volume_percent)
-    elseif volume_percent < 10 then
-      volume_percent = 100
-      ChangeVolume(100)
+    if volume_percent >= 5 then
+      volume_percent = volume_percent - 5
+    elseif volume_percent < 5 then
+      volume_percent = 0
     end
+    ChangeVolume(volume_percent)
     volumeLabel:SetText(tostring(volume_percent) .. "%")
   end
   

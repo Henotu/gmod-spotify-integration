@@ -186,12 +186,15 @@ local function GetCurrentPlayback(cb, task, obj)
   local request = CreateRequest("https://api.spotify.com/v1/me/player", "GET", head)
   request["success"] = function(code, json)
     local tbl = util.JSONToTable(json)
-    if tbl["is_playing"] then
-      volume_percent = tbl["device"]["volume_percent"]
-      if (tbl["device"]["type"] == "Computer") then
-        LocalPlayer():SetPData("gmod_spotify_device_id", tbl["device"]["id"])
+    local succ, err = pcall(function()
+      if tbl["is_playing"] then
+        volume_percent = tbl["device"]["volume_percent"]
+        if (tbl["device"]["type"] == "Computer") then
+          LocalPlayer():SetPData("gmod_spotify_device_id", tbl["device"]["id"])
+        end
       end
-    end
+    end)
+    if succ == false then error("There was an error accesing your current playback. Try (re)starting your Spotify.") end
     VarUpdater(cb, task, obj, tbl)
   end
   HTTP(request)
@@ -865,5 +868,5 @@ hook.Add("TTT2FinishedLoading", "ttt_Statistics_Addon_gui", function()
 end)
 
 if GetConVar("Spotify_enable"):GetBool() then
-  timer.Simple(1, CheckForValidToken) 
+  timer.Simple(10, CheckForValidToken)
 end

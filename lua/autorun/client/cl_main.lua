@@ -17,8 +17,10 @@ end
 local volume_percent
 local isPaused
 
+-- Authorize the Controller using the spotify accounts service
+--
+-- @param string key  The OAuth key taken from the redirect of the spotify page (e.g. https://henotu.github.io)
 local function Authorization(key)
-  -- Authorize the Controller using the spotify accounts service
   local hea = {}
   hea["Content-length"] = "0"
   local tbl = string.Split(LocalPlayer():GetPData("gmod_spotify_client_keys", ""), "\n")
@@ -53,6 +55,9 @@ local function Authorization(key)
   HTTP(request)
 end
 
+-- This function refreshes the expired (or current) access token using
+-- the refresh token ('gmod_spotify_refresh_token'). After a successfull update, 
+-- 'gmod_spotify_expire_time' gets set to the current os.time()
 local function Reauthorization()
   local hea = {}
   hea["Content-length"] = "0"
@@ -83,6 +88,8 @@ local function Reauthorization()
   HTTP(request)
 end 
 
+-- Checks if the current access_token is still valid. If not the token gets updated using
+-- Reauthorization().
 local function CheckForValidToken()
   if (LocalPlayer():GetPData("gmod_spotify_expire_time", "") == "") then
     print("The Addon hasn't been activated yet")
@@ -91,6 +98,11 @@ local function CheckForValidToken()
   end
 end
 
+-- This function requests and recieves the spotify application credentials from the sever, if they exist.
+-- If they don't exist, the param func gets called. Otherwise, the user gets directed to the OAuthWindow
+--
+-- @param function func   The function, the user gets redirected to. In all cases the ClientKeyWindow().
+--                        Don't ask, why this parameter exists, it's lua.
 local function KeyLoader(func)
   local useServerKeys = GetConVar("Spotify_use_server_keys"):GetBool()
   if useServerKeys and (LocalPlayer():GetPData("gmod_spotify_client_keys", "") == "") then
@@ -113,6 +125,11 @@ end
 --util.AddNetworkString("Spotify_request")
 
 
+-- Creates a request template that gets used im most cases
+--
+-- @param string url  The url of the request
+-- @param string method  The http method (e.g. 'GET', 'POST')
+-- @return table  The request-template
 local function CreateRequest(url, method, header, bod)
   --Create a Request Table
   local request = {
@@ -132,6 +149,11 @@ local function CreateRequest(url, method, header, bod)
   return request
 end
 
+-- Sends a request to the spotify api 'v1/me/player/currently-playing'
+--
+-- @param function cb  The callback function (mostly 'SetTrackInfo')
+-- @param shared obj  An object to be sent as the param of the callvack function
+-- @return Doesn't return anything but calls the specified function
 local function GetTrackInfo(cb, obj)
   CheckForValidToken()
   local head = {}
@@ -147,6 +169,13 @@ local function GetTrackInfo(cb, obj)
   HTTP(request)
 end 
 
+-- A utility function to format the search result buttons
+-- Has some problems because some characters are wider than spaces
+-- Both input strings are compared
+-- 
+-- @param string name  The name of the song
+-- @param string artist  The name of the artist
+-- @return string  A string full of spaces, to be set before and after the desired word
 local function SpaceGenerator(name, artist)
   local len = string.len(name) - string.len(artist)
   local str = ""
@@ -163,6 +192,12 @@ local function SpaceGenerator(name, artist)
   return str
 end
 
+-- A helper of GetCurrentPlayback() function to execute differrent functions depending on the task
+--
+-- @param function cb  The callback function to be executed
+-- @param string task  The string containing the task to be executed
+-- @param shared obj  The first parameter of the callback function
+-- @param table tbl  The second parameter of the callback function
 local function VarUpdater(cb, task, obj, tbl)
   if task == "Paused" then
     local paused = tbl["is_playing"]
@@ -178,6 +213,12 @@ local function VarUpdater(cb, task, obj, tbl)
   end
 end
 
+-- Sends a request to the spotify api '/v1/me/player'.
+-- Returns the callback of the api to the specified funtion
+--
+-- @param function cb  The callback funtion to be executed
+-- @param string task  The task for the VarUpdater()
+-- @param shared obj   The object to be passed to VarUpdater()
 local function GetCurrentPlayback(cb, task, obj)
   CheckForValidToken()
   local head = {}
@@ -200,6 +241,7 @@ local function GetCurrentPlayback(cb, task, obj)
   HTTP(request)
 end
 
+-- Pauses the playback using the Spotify api '/v1/me/player/pause'
 local function PausePlayback()
   -- Pause Playback using the spotify api
   CheckForValidToken()
@@ -210,6 +252,7 @@ local function PausePlayback()
   HTTP(CreateRequest("https://api.spotify.com/v1/me/player/pause", "PUT", head))
 end
 
+-- Start the playback again
 local function ContinuePlayback()
   -- Continue Playback using the spotify api
   CheckForValidToken()
@@ -234,6 +277,9 @@ local function ContinuePlayback()
   HTTP(request)
 end
 
+-- Plays the specified track
+--
+-- @param string uri The spotify's song uri
 local function PlayTrack(uri)
   -- Play as certain track
   local head = {}
@@ -251,6 +297,9 @@ local function PlayTrack(uri)
   end
 end
 
+-- Changes Volume to the given percent
+--
+-- @param shared percent  The percent to be set to 
 local function ChangeVolume(percent)
   -- Change volume to the given percent
   CheckForValidToken()
@@ -448,7 +497,7 @@ local function DisplaySearchedTracks(obj, tbl)
   end
 end
 
--- Frontend -> 1DB954
+-- Frontend - Color: 1DB954
 local function RunWindow()
   local frame = vgui.Create("DFrame")
   frame.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color(86, 86, 86, 255)) end
@@ -592,7 +641,8 @@ local function RunWindow()
     --button.OnClick = PausePlayback]]
     
     local Spotify_enable = GetConVar("Spotify_enable"):GetBool() or false
-    
+  
+  --triggers when Addon isn't enabled and sets visibility of every controller to none
   if not Spotify_enable then
     local infoLabel = vgui.Create("DLabel", control)
     infoLabel:SetText("This Addon is not enabled. \nGo to the authorization tab to get startet with the Spotify controller.\n")
@@ -612,6 +662,7 @@ local function RunWindow()
     volumeImage:SetVisible(false)
     volumeLabel:SetVisible(false)
   end
+
   --
   -- search
   --
